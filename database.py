@@ -40,15 +40,20 @@ async def init_db():
                 s3_path TEXT,
                 status TEXT NOT NULL,
                 error_message TEXT,
+                event_date DATE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (task_id) REFERENCES download_records(task_id)
             )
         """)
-        # Migration: add html_address column if it doesn't exist
+        # Migration: add columns if they don't exist
         try:
             await db.execute("ALTER TABLE file_records ADD COLUMN html_address TEXT")
         except Exception:
-            pass  # Column already exists
+            pass
+        try:
+            await db.execute("ALTER TABLE file_records ADD COLUMN event_date DATE")
+        except Exception:
+            pass
         await db.commit()
 
 
@@ -129,11 +134,11 @@ async def get_task(task_id: str):
         return None
 
 
-async def create_file_record(task_id: str, file_type: str, original_url: str, html_address: str = None):
+async def create_file_record(task_id: str, file_type: str, original_url: str, html_address: str = None, event_date: str = None):
     async with aiosqlite.connect(DATABASE_PATH) as db:
         cursor = await db.execute(
-            """INSERT INTO file_records (task_id, file_type, original_url, html_address, status) VALUES (?, ?, ?, ?, 'pending')""",
-            (task_id, file_type, original_url, html_address)
+            """INSERT INTO file_records (task_id, file_type, original_url, html_address, event_date, status) VALUES (?, ?, ?, ?, ?, 'pending')""",
+            (task_id, file_type, original_url, html_address, event_date)
         )
         await db.commit()
         return cursor.lastrowid
@@ -163,27 +168,16 @@ async def get_all_files(search: str = None, page: int = 1, page_size: int = 20):
     offset = (page - 1) * page_size
     params = []
 
-    base_query = """
-        SELECT
-            fr.id, fr.task_id, fr.file_type, fr.original_url, fr.html_address, fr.local_path,
-            fr.s3_path, fr.status, fr.error_message, fr.created_at,
-            dr.company_name, dr.bse_scrip_code, dr.fy, dr.quarter
-        FROM file_records fr
-        JOIN download_records dr ON fr.task_id = dr.task_id
-    """
-
     count_query = """
         SELECT COUNT(*) FROM file_records fr
         JOIN download_records dr ON fr.task_id = dr.task_id
-        WHERE fr.status = 'downloaded' OR fr.status = 'uploaded'
+        WHERE (fr.status = 'downloaded' OR fr.status = 'uploaded')
     """
 
     where_clause = ""
     if search:
         where_clause = " AND (dr.company_name LIKE ? OR dr.bse_scrip_code LIKE ?)"
         params.extend([f"%{search}%", f"%{search}%"])
-
-    final_where = f" AND (fr.status = 'downloaded' OR fr.status = 'uploaded'){where_clause}" if where_clause else f" WHERE (fr.status = 'downloaded' OR fr.status = 'uploaded')"
 
     async with aiosqlite.connect(DATABASE_PATH) as db:
         db.row_factory = aiosqlite.Row
@@ -196,11 +190,11 @@ async def get_all_files(search: str = None, page: int = 1, page_size: int = 20):
         query = f"""
             SELECT
                 fr.id, fr.task_id, fr.file_type, fr.original_url, fr.html_address, fr.local_path,
-                fr.s3_path, fr.status, fr.error_message, fr.created_at,
+                fr.s3_path, fr.status, fr.error_message, fr.event_date, fr.created_at,
                 dr.company_name, dr.bse_scrip_code, dr.fy, dr.quarter
             FROM file_records fr
             JOIN download_records dr ON fr.task_id = dr.task_id
-            {final_where}
+            WHERE (fr.status = 'downloaded' OR fr.status = 'uploaded'){where_clause}
             ORDER BY fr.created_at DESC
             LIMIT ? OFFSET ?
         """
