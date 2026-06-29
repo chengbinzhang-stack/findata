@@ -150,3 +150,62 @@ async def get_file_records(task_id: str):
         )
         rows = await cursor.fetchall()
         return [dict(row) for row in rows]
+
+
+async def get_all_files(search: str = None, page: int = 1, page_size: int = 20):
+    """Get all downloaded files with optional filter and pagination."""
+    offset = (page - 1) * page_size
+    params = []
+
+    base_query = """
+        SELECT
+            fr.id, fr.task_id, fr.file_type, fr.original_url, fr.local_path,
+            fr.s3_path, fr.status, fr.error_message, fr.created_at,
+            dr.company_name, dr.bse_scrip_code, dr.fy, dr.quarter
+        FROM file_records fr
+        JOIN download_records dr ON fr.task_id = dr.task_id
+    """
+
+    count_query = """
+        SELECT COUNT(*) FROM file_records fr
+        JOIN download_records dr ON fr.task_id = dr.task_id
+        WHERE fr.status = 'downloaded' OR fr.status = 'uploaded'
+    """
+
+    where_clause = ""
+    if search:
+        where_clause = " AND (dr.company_name LIKE ? OR dr.bse_scrip_code LIKE ?)"
+        params.extend([f"%{search}%", f"%{search}%"])
+
+    final_where = f" AND (fr.status = 'downloaded' OR fr.status = 'uploaded'){where_clause}" if where_clause else f" WHERE (fr.status = 'downloaded' OR fr.status = 'uploaded')"
+
+    async with aiosqlite.connect(DATABASE_PATH) as db:
+        db.row_factory = aiosqlite.Row
+
+        # Get total count
+        count_cursor = await db.execute(count_query + where_clause, params)
+        total = (await count_cursor.fetchone())[0]
+
+        # Get paginated results
+        query = f"""
+            SELECT
+                fr.id, fr.task_id, fr.file_type, fr.original_url, fr.local_path,
+                fr.s3_path, fr.status, fr.error_message, fr.created_at,
+                dr.company_name, dr.bse_scrip_code, dr.fy, dr.quarter
+            FROM file_records fr
+            JOIN download_records dr ON fr.task_id = dr.task_id
+            {final_where}
+            ORDER BY fr.created_at DESC
+            LIMIT ? OFFSET ?
+        """
+        params.extend([page_size, offset])
+        cursor = await db.execute(query, params)
+        rows = await cursor.fetchall()
+
+        return {
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": (total + page_size - 1) // page_size,
+            "files": [dict(row) for row in rows]
+        }

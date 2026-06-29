@@ -15,7 +15,7 @@ from models import Quarter, DocumentType, TaskStatus, ValidateUrlResponse
 from database import (
     init_db, search_companies, get_company_by_scrip, get_company_by_name,
     save_company, create_download_task, get_task, update_task_status,
-    create_file_record, update_file_record, get_file_records
+    create_file_record, update_file_record, get_file_records, get_all_files
 )
 from downloader import validate_url, generate_filename, generate_folder_path, download_file
 from s3_utils import upload_to_s3
@@ -221,6 +221,78 @@ async def api_list_tasks():
         )
         rows = await cursor.fetchall()
         return [dict(row) for row in rows]
+
+
+@app.get("/files", response_class=HTMLResponse)
+async def list_files(request: Request):
+    return templates.TemplateResponse("files.html", {"request": request})
+
+
+@app.get("/api/files")
+async def api_list_files(search: str = None, page: int = 1, page_size: int = 20):
+    result = await get_all_files(search=search, page=page, page_size=page_size)
+    return result
+
+
+@app.get("/api/files/download-excel")
+async def download_files_excel(search: str = None):
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    from fastapi.responses import StreamingResponse
+    import io
+
+    result = await get_all_files(search=search, page=1, page_size=10000)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Downloaded Files"
+
+    # Headers
+    headers = ["Ticker Used In File name", "Company Name", "FY", "Quarter", "Document Type", "File Path", "Status", "Download Date"]
+    header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF")
+    thin_border = Border(
+        left=Side(style='thin'), right=Side(style='thin'),
+        top=Side(style='thin'), bottom=Side(style='thin')
+    )
+
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center')
+        cell.border = thin_border
+
+    # Data
+    for row_idx, file_data in enumerate(result["files"], 2):
+        ws.cell(row=row_idx, column=1, value=file_data["bse_scrip_code"]).border = thin_border
+        ws.cell(row=row_idx, column=2, value=file_data["company_name"]).border = thin_border
+        ws.cell(row=row_idx, column=3, value=file_data["fy"]).border = thin_border
+        ws.cell(row=row_idx, column=4, value=file_data["quarter"]).border = thin_border
+        ws.cell(row=row_idx, column=5, value=file_data["file_type"]).border = thin_border
+        ws.cell(row=row_idx, column=6, value=file_data["local_path"] or "").border = thin_border
+        ws.cell(row=row_idx, column=7, value=file_data["status"]).border = thin_border
+        ws.cell(row=row_idx, column=8, value=file_data["created_at"]).border = thin_border
+
+    # Column widths
+    ws.column_dimensions['A'].width = 25
+    ws.column_dimensions['B'].width = 30
+    ws.column_dimensions['C'].width = 10
+    ws.column_dimensions['D'].width = 10
+    ws.column_dimensions['E'].width = 25
+    ws.column_dimensions['F'].width = 50
+    ws.column_dimensions['G'].width = 15
+    ws.column_dimensions['H'].width = 20
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=downloaded_files.xlsx"}
+    )
 
 
 if __name__ == "__main__":
