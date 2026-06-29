@@ -201,6 +201,7 @@
                             <th>FY</th>
                             <th>Quarter</th>
                             <th>Document Type</th>
+                            <th>HTML Address</th>
                             <th>File Path</th>
                             <th>Status</th>
                             <th>Download Date</th>
@@ -221,6 +222,7 @@
                         <td>${file.fy}</td>
                         <td>${file.quarter}</td>
                         <td>${docType}</td>
+                        <td>${file.html_address || ''}</td>
                         <td>${fileName}</td>
                         <td><span class="status-badge ${statusClass}">${file.status}</span></td>
                         <td>${file.created_at}</td>

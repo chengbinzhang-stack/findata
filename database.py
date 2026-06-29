@@ -35,6 +35,7 @@ async def init_db():
                 task_id TEXT NOT NULL,
                 file_type TEXT NOT NULL,
                 original_url TEXT,
+                html_address TEXT,
                 local_path TEXT,
                 s3_path TEXT,
                 status TEXT NOT NULL,
@@ -43,6 +44,11 @@ async def init_db():
                 FOREIGN KEY (task_id) REFERENCES download_records(task_id)
             )
         """)
+        # Migration: add html_address column if it doesn't exist
+        try:
+            await db.execute("ALTER TABLE file_records ADD COLUMN html_address TEXT")
+        except Exception:
+            pass  # Column already exists
         await db.commit()
 
 
@@ -123,11 +129,11 @@ async def get_task(task_id: str):
         return None
 
 
-async def create_file_record(task_id: str, file_type: str, original_url: str):
+async def create_file_record(task_id: str, file_type: str, original_url: str, html_address: str = None):
     async with aiosqlite.connect(DATABASE_PATH) as db:
         cursor = await db.execute(
-            """INSERT INTO file_records (task_id, file_type, original_url, status) VALUES (?, ?, ?, 'pending')""",
-            (task_id, file_type, original_url)
+            """INSERT INTO file_records (task_id, file_type, original_url, html_address, status) VALUES (?, ?, ?, ?, 'pending')""",
+            (task_id, file_type, original_url, html_address)
         )
         await db.commit()
         return cursor.lastrowid
@@ -159,7 +165,7 @@ async def get_all_files(search: str = None, page: int = 1, page_size: int = 20):
 
     base_query = """
         SELECT
-            fr.id, fr.task_id, fr.file_type, fr.original_url, fr.local_path,
+            fr.id, fr.task_id, fr.file_type, fr.original_url, fr.html_address, fr.local_path,
             fr.s3_path, fr.status, fr.error_message, fr.created_at,
             dr.company_name, dr.bse_scrip_code, dr.fy, dr.quarter
         FROM file_records fr
@@ -189,7 +195,7 @@ async def get_all_files(search: str = None, page: int = 1, page_size: int = 20):
         # Get paginated results
         query = f"""
             SELECT
-                fr.id, fr.task_id, fr.file_type, fr.original_url, fr.local_path,
+                fr.id, fr.task_id, fr.file_type, fr.original_url, fr.html_address, fr.local_path,
                 fr.s3_path, fr.status, fr.error_message, fr.created_at,
                 dr.company_name, dr.bse_scrip_code, dr.fy, dr.quarter
             FROM file_records fr
