@@ -85,14 +85,14 @@
                         <span class="validate-icon" id="earnings_transcript_valid"></span>
                     </div>
                     <div class="form-group">
-                        <label for="earnings_transcript_date">Event Date</label>
-                        <input type="date" id="earnings_transcript_date" name="earnings_transcript_date">
+                        <label for="earnings_transcript_html_address">HTML Address</label>
+                        <input type="url" id="earnings_transcript_html_address" name="earnings_transcript_html_address" placeholder="https://...">
                     </div>
                 </div>
                 <div class="row">
                     <div class="form-group">
-                        <label for="earnings_transcript_html_address">HTML Address</label>
-                        <input type="url" id="earnings_transcript_html_address" name="earnings_transcript_html_address" placeholder="https://...">
+                        <label for="earnings_transcript_date">Event Date</label>
+                        <input type="date" id="earnings_transcript_date" name="earnings_transcript_date">
                     </div>
                 </div>
                 <div class="filename-preview" id="earnings_transcript_filename"></div>
@@ -107,14 +107,14 @@
                         <span class="validate-icon" id="investor_presentation_valid"></span>
                     </div>
                     <div class="form-group">
-                        <label for="investor_presentation_date">Event Date</label>
-                        <input type="date" id="investor_presentation_date" name="investor_presentation_date">
+                        <label for="investor_presentation_html_address">HTML Address</label>
+                        <input type="url" id="investor_presentation_html_address" name="investor_presentation_html_address" placeholder="https://...">
                     </div>
                 </div>
                 <div class="row">
                     <div class="form-group">
-                        <label for="investor_presentation_html_address">HTML Address</label>
-                        <input type="url" id="investor_presentation_html_address" name="investor_presentation_html_address" placeholder="https://...">
+                        <label for="investor_presentation_date">Event Date</label>
+                        <input type="date" id="investor_presentation_date" name="investor_presentation_date">
                     </div>
                 </div>
                 <div class="filename-preview" id="investor_presentation_filename"></div>
@@ -129,14 +129,14 @@
                         <span class="validate-icon" id="financial_results_valid"></span>
                     </div>
                     <div class="form-group">
-                        <label for="financial_results_date">Event Date</label>
-                        <input type="date" id="financial_results_date" name="financial_results_date">
+                        <label for="financial_results_html_address">HTML Address</label>
+                        <input type="url" id="financial_results_html_address" name="financial_results_html_address" placeholder="https://...">
                     </div>
                 </div>
                 <div class="row">
                     <div class="form-group">
-                        <label for="financial_results_html_address">HTML Address</label>
-                        <input type="url" id="financial_results_html_address" name="financial_results_html_address" placeholder="https://...">
+                        <label for="financial_results_date">Event Date</label>
+                        <input type="date" id="financial_results_date" name="financial_results_date">
                     </div>
                 </div>
                 <div class="filename-preview" id="financial_results_filename"></div>
@@ -151,14 +151,14 @@
                         <span class="validate-icon" id="earnings_audio_valid"></span>
                     </div>
                     <div class="form-group">
-                        <label for="earnings_audio_date">Event Date</label>
-                        <input type="date" id="earnings_audio_date" name="earnings_audio_date">
+                        <label for="earnings_audio_html_address">HTML Address</label>
+                        <input type="url" id="earnings_audio_html_address" name="earnings_audio_html_address" placeholder="https://...">
                     </div>
                 </div>
                 <div class="row">
                     <div class="form-group">
-                        <label for="earnings_audio_html_address">HTML Address</label>
-                        <input type="url" id="earnings_audio_html_address" name="earnings_audio_html_address" placeholder="https://...">
+                        <label for="earnings_audio_date">Event Date</label>
+                        <input type="date" id="earnings_audio_date" name="earnings_audio_date">
                     </div>
                 </div>
                 <div class="filename-preview" id="earnings_audio_filename"></div>
@@ -312,6 +312,20 @@
         }
 
         syncDates('earnings_transcript_date', ['investor_presentation_date', 'financial_results_date', 'earnings_audio_date']);
+
+        function syncHtmlAddress(sourceId, targetIds) {
+            const source = document.getElementById(sourceId);
+            source.addEventListener('input', function() {
+                targetIds.forEach(id => {
+                    const target = document.getElementById(id);
+                    if (!target.value) {
+                        target.value = this.value;
+                    }
+                });
+            });
+        }
+
+        syncHtmlAddress('earnings_transcript_html_address', ['investor_presentation_html_address', 'financial_results_html_address', 'earnings_audio_html_address']);
 
         document.getElementById('downloadForm').addEventListener('submit', async function(e) {
             e.preventDefault();

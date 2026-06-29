@@ -255,7 +255,7 @@ async def download_files_excel(search: str = None):
     ws.title = "Downloaded Files"
 
     # Headers
-    headers = ["Ticker Used In File name", "Company Name", "FY", "Quarter", "Document Type", "Source URL", "HTML Address", "File Path", "Event Date", "Status", "Download Date"]
+    headers = ["Ticker Used In File name", "Company Name", "FY", "Quarter", "Document Type", "HTML Address", "Source URL", "File Path", "Event Date", "Status", "Download Date"]
     header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
     header_font = Font(bold=True, color="FFFFFF")
     thin_border = Border(
@@ -277,8 +277,8 @@ async def download_files_excel(search: str = None):
         ws.cell(row=row_idx, column=3, value=file_data["fy"]).border = thin_border
         ws.cell(row=row_idx, column=4, value=file_data["quarter"]).border = thin_border
         ws.cell(row=row_idx, column=5, value=file_data["file_type"]).border = thin_border
-        ws.cell(row=row_idx, column=6, value=file_data["original_url"] or "").border = thin_border
-        ws.cell(row=row_idx, column=7, value=file_data["html_address"] or "").border = thin_border
+        ws.cell(row=row_idx, column=6, value=file_data["html_address"] or "").border = thin_border
+        ws.cell(row=row_idx, column=7, value=file_data["original_url"] or "").border = thin_border
         ws.cell(row=row_idx, column=8, value=file_data["local_path"] or "").border = thin_border
         ws.cell(row=row_idx, column=9, value=file_data["event_date"] or "").border = thin_border
         ws.cell(row=row_idx, column=10, value=file_data["status"]).border = thin_border
