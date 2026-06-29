@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transcript Downloader</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); padding: 30px; }
+        h1 { color: #333; margin-bottom: 30px; text-align: center; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-weight: 600; margin-bottom: 5px; color: #555; }
+        input[type="text"], input[type="date"], input[type="url"], select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+        input:focus, select:focus { outline: none; border-color: #007bff; }
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .section { background: #f9f9f9; padding: 20px; border-radius: 6px; margin-bottom: 20px; }
+        .section-title { font-weight: 600; color: #333; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #007bff; }
+        .btn { background: #007bff; color: white; padding: 12px 30px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        .btn:hover { background: #0056b3; }
+        .btn:disabled { background: #ccc; cursor: not-allowed; }
+        .autocomplete { position: relative; }
+        .autocomplete-items { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-radius: 4px; max-height: 200px; overflow-y: auto; z-index: 100; }
+        .autocomplete-item { padding: 10px; cursor: pointer; border-bottom: 1px solid #eee; }
+        .autocomplete-item:hover { background: #f0f0f0; }
+        .status-message { padding: 15px; margin-top: 20px; border-radius: 4px; display: none; }
+        .status-message.success { background: #d4edda; color: #155724; display: block; }
+        .status-message.error { background: #f8d7da; color: #721c24; display: block; }
+        .filename-preview { font-size: 12px; color: #666; margin-top: 5px; background: #fff3cd; padding: 5px 10px; border-radius: 4px; display: inline-block; }
+        .folder-preview { font-size: 12px; color: #666; margin-top: 5px; background: #e7f3ff; padding: 5px 10px; border-radius: 4px; display: inline-block; word-break: break-all; }
+        .validate-icon { display: inline-block; width: 20px; height: 20px; vertical-align: middle; margin-left: 5px; }
+        .validate-icon.valid { color: green; }
+        .validate-icon.invalid { color: red; }
+        .validate-icon.pending { color: orange; }
+        .loading { text-align: center; padding: 20px; display: none; }
+        .spinner { border: 3px solid #f3f3f3; border-top: 3px solid #007bff; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Transcript Downloader</h1>
+
+        <form id="downloadForm">
+            <div class="section">
+                <div class="section-title">Company Information</div>
+                <div class="row">
+                    <div class="form-group autocomplete" id="companyGroup">
+                        <label for="company_name">Company Name</label>
+                        <input type="text" id="company_name" name="company_name" required autocomplete="off">
+                        <div class="autocomplete-items" id="companySuggestions"></div>
+                    </div>
+                    <div class="form-group">
+                        <label for="bse_scrip_code">BSE Scrip Code</label>
+                        <input type="text" id="bse_scrip_code" name="bse_scrip_code" required>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="form-group">
+                        <label for="fy">FY</label>
+                        <select id="fy" name="fy" required>
+                            {% for fy in fy_choices %}
+                            <option value="{{ fy }}">{{ fy }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="quarter">Quarter</label>
+                        <select id="quarter" name="quarter" required>
+                            {% for q in quarters %}
+                            <option value="{{ q }}">{{ q }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Earnings Call Transcript</div>
+                <div class="row">
+                    <div class="form-group">
+                        <label for="earnings_transcript_url">URL</label>
+                        <input type="url" id="earnings_transcript_url" name="earnings_transcript_url" placeholder="https://...">
+                        <span class="validate-icon" id="earnings_transcript_valid"></span>
+                    </div>
+                    <div class="form-group">
+                        <label for="earnings_transcript_date">Event Date</label>
+                        <input type="date" id="earnings_transcript_date" name="earnings_transcript_date">
+                    </div>
+                </div>
+                <div class="filename-preview" id="earnings_transcript_filename"></div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Investor Presentation</div>
+                <div class="row">
+                    <div class="form-group">
+                        <label for="investor_presentation_url">URL</label>
+                        <input type="url" id="investor_presentation_url" name="investor_presentation_url" placeholder="https://...">
+                        <span class="validate-icon" id="investor_presentation_valid"></span>
+                    </div>
+                    <div class="form-group">
+                        <label for="investor_presentation_date">Event Date</label>
+                        <input type="date" id="investor_presentation_date" name="investor_presentation_date">
+                    </div>
+                </div>
+                <div class="filename-preview" id="investor_presentation_filename"></div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Financial Results</div>
+                <div class="row">
+                    <div class="form-group">
+                        <label for="financial_results_url">URL</label>
+                        <input type="url" id="financial_results_url" name="financial_results_url" placeholder="https://...">
+                        <span class="validate-icon" id="financial_results_valid"></span>
+                    </div>
+                    <div class="form-group">
+                        <label for="financial_results_date">Event Date</label>
+                        <input type="date" id="financial_results_date" name="financial_results_date">
+                    </div>
+                </div>
+                <div class="filename-preview" id="financial_results_filename"></div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Earnings Call Audio</div>
+                <div class="row">
+                    <div class="form-group">
+                        <label for="earnings_audio_url">URL</label>
+                        <input type="url" id="earnings_audio_url" name="earnings_audio_url" placeholder="https://...">
+                        <span class="validate-icon" id="earnings_audio_valid"></span>
+                    </div>
+                    <div class="form-group">
+                        <label for="earnings_audio_date">Event Date</label>
+                        <input type="date" id="earnings_audio_date" name="earnings_audio_date">
+                    </div>
+                </div>
+                <div class="filename-preview" id="earnings_audio_filename"></div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Folder Path</div>
+                <div class="folder-preview" id="folderPathPreview">Transcripts_Repository/[Scrip Code]/[FY]/[Quarter]/</div>
+            </div>
+
+            <button type="submit" class="btn" id="submitBtn">Submit</button>
+        </form>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Submitting task...</p>
+        </div>
+
+        <div class="status-message" id="statusMessage"></div>
+    </div>
+
+    <script>
+        let debounceTimer;
+        let companyCache = {};
+
+        const scripCodeInput = document.getElementById('bse_scrip_code');
+        const companyInput = document.getElementById('company_name');
+        const fySelect = document.getElementById('fy');
+        const quarterSelect = document.getElementById('quarter');
+        const folderPreview = document.getElementById('folderPathPreview');
+
+        function updateFolderPath() {
+            const scrip = scripCodeInput.value || '[Scrip Code]';
+            const fy = fySelect.value || '[FY]';
+            const quarter = quarterSelect.value || '[Quarter]';
+            folderPreview.textContent = `Transcripts_Repository/${scrip}/${fy}/${quarter}/`;
+        }
+
+        scripCodeInput.addEventListener('input', updateFolderPath);
+        fySelect.addEventListener('change', updateFolderPath);
+        quarterSelect.addEventListener('change', updateFolderPath);
+
+        companyInput.addEventListener('input', function() {
+            clearTimeout(debounceTimer);
+            const query = this.value.trim();
+            if (query.length < 1) {
+                document.getElementById('companySuggestions').innerHTML = '';
+                return;
+            }
+            debounceTimer = setTimeout(async () => {
+                try {
+                    const response = await fetch(`/api/company/search?q=${encodeURIComponent(query)}`);
+                    const companies = await response.json();
+                    const container = document.getElementById('companySuggestions');
+                    container.innerHTML = '';
+                    companies.forEach(company => {
+                        const div = document.createElement('div');
+                        div.className = 'autocomplete-item';
+                        div.textContent = `${company.company_name} (${company.bse_scrip_code})`;
+                        div.onclick = () => {
+                            companyInput.value = company.company_name;
+                            scripCodeInput.value = company.bse_scrip_code;
+                            container.innerHTML = '';
+                            updateFolderPath();
+                        };
+                        container.appendChild(div);
+                    });
+                } catch (e) {
+                    console.error('Search failed:', e);
+                }
+            }, 300);
+        });
+
+        function getFileExtension(url, defaultExt = '.pdf') {
+            if (!url) return defaultExt;
+            try {
+                const path = new URL(url).pathname;
+                const match = path.match(/\.(mp3|mp4|wav|m4a|pdf)$/i);
+                return match ? '.' + match[1].toLowerCase() : defaultExt;
+            } catch {
+                return defaultExt;
+            }
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return new Date().toISOString().split('T')[0];
+            return dateStr;
+        }
+
+        function updateFilenamePreview(prefix, url, dateInput) {
+            const preview = document.getElementById(`${prefix}_filename`);
+            const date = dateInput.value || new Date().toISOString().split('T')[0];
+            const dateFormatted = date.replace(/-/g, '');
+            const scrip = scripCodeInput.value || '[ScripCode]';
+            const ext = getFileExtension(url, prefix === 'earnings_audio' ? '.mp4' : '.pdf');
+            const typeNames = {
+                'earnings_transcript': 'EarningsCallTranscript',
+                'investor_presentation': 'InvestorPresentation',
+                'financial_results': 'FinancialResults',
+                'earnings_audio': 'EarningsCallAudio'
+            };
+            preview.textContent = `${dateFormatted}_${scrip}_${typeNames[prefix]}${ext}`;
+        }
+
+        ['earnings_transcript', 'investor_presentation', 'financial_results', 'earnings_audio'].forEach(prefix => {
+            const urlInput = document.getElementById(`${prefix}_url`);
+            const dateInput = document.getElementById(`${prefix}_date`);
+            urlInput.addEventListener('input', () => {
+                updateFilenamePreview(prefix, urlInput.value, dateInput);
+                validateUrl(urlInput, prefix);
+            });
+            dateInput.addEventListener('input', () => updateFilenamePreview(prefix, urlInput.value, dateInput));
+            dateInput.addEventListener('change', () => updateFilenamePreview(prefix, urlInput.value, dateInput));
+        });
+
+        async function validateUrl(urlInput, prefix) {
+            const icon = document.getElementById(`${prefix}_valid`);
+            const url = urlInput.value.trim();
+            if (!url) {
+                icon.innerHTML = '';
+                return;
+            }
+            icon.innerHTML = '⏳';
+            icon.className = 'validate-icon pending';
+            try {
+                const response = await fetch(`/api/validate-url?url=${encodeURIComponent(url)}`);
+                const result = await response.json();
+                if (result.valid) {
+                    icon.innerHTML = '✓';
+                    icon.className = 'validate-icon valid';
+                } else {
+                    icon.innerHTML = '✗';
+                    icon.className = 'validate-icon invalid';
+                }
+            } catch (e) {
+                icon.innerHTML = '✗';
+                icon.className = 'validate-icon invalid';
+            }
+        }
+
+        function syncDates(sourceId, targetIds) {
+            const source = document.getElementById(sourceId);
+            source.addEventListener('change', function() {
+                targetIds.forEach(id => {
+                    const target = document.getElementById(id);
+                    if (!target.value) {
+                        target.value = this.value;
+                    }
+                });
+            });
+        }
+
+        syncDates('earnings_transcript_date', ['investor_presentation_date', 'financial_results_date', 'earnings_audio_date']);
+
+        document.getElementById('downloadForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const form = this;
+            const submitBtn = document.getElementById('submitBtn');
+            const loading = document.getElementById('loading');
+            const statusMessage = document.getElementById('statusMessage');
+
+            submitBtn.disabled = true;
+            loading.style.display = 'block';
+            statusMessage.style.display = 'none';
+
+            const formData = new FormData(form);
+            try {
+                const response = await fetch('/api/submit', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    statusMessage.className = 'status-message success';
+                    statusMessage.textContent = `Task submitted! Task ID: ${result.task_id}. Redirecting to status page...`;
+                    setTimeout(() => {
+                        window.location.href = `/status/${result.task_id}`;
+                    }, 1500);
+                } else {
+                    throw new Error(result.detail || 'Submission failed');
+                }
+            } catch (e) {
+                statusMessage.className = 'status-message error';
+                statusMessage.textContent = 'Error: ' + e.message;
+                submitBtn.disabled = false;
+            } finally {
+                loading.style.display = 'none';
+            }
+        });
+
+        updateFolderPath();
+    </script>
+</body>
+</html>

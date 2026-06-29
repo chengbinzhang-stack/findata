@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Status - Transcript Downloader</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); padding: 30px; }
+        h1 { color: #333; margin-bottom: 30px; }
+        .task-info { background: #f9f9f9; padding: 20px; border-radius: 6px; margin-bottom: 20px; }
+        .task-info p { margin-bottom: 10px; }
+        .task-info strong { display: inline-block; width: 150px; }
+        .status-badge { display: inline-block; padding: 5px 15px; border-radius: 20px; font-weight: 600; text-transform: uppercase; font-size: 12px; }
+        .status-pending { background: #fff3cd; color: #856404; }
+        .status-validating { background: #cce5ff; color: #004085; }
+        .status-downloading { background: #d1ecf1; color: #0c5460; }
+        .status-uploading { background: #d4edda; color: #155724; }
+        .status-completed { background: #28a745; color: white; }
+        .status-failed { background: #dc3545; color: white; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #f5f5f5; font-weight: 600; }
+        tr:hover { background: #f9f9f9; }
+        .btn { display: inline-block; padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; margin-top: 20px; }
+        .btn:hover { background: #0056b3; }
+        .refresh-note { color: #666; font-size: 14px; margin-top: 10px; }
+        .error-msg { color: #dc3545; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Download Task Status</h1>
+
+        <div class="task-info">
+            <p><strong>Task ID:</strong> {{ task.task_id }}</p>
+            <p><strong>Company:</strong> {{ task.company_name }} ({{ task.bse_scrip_code }})</p>
+            <p><strong>FY/Quarter:</strong> {{ task.fy }} {{ task.quarter }}</p>
+            <p><strong>Folder:</strong> {{ task.folder_path }}</p>
+            <p><strong>Status:</strong> <span class="status-badge status-{{ task.status }}">{{ task.status }}</span></p>
+            <p><strong>Created:</strong> {{ task.created_at }}</p>
+        </div>
+
+        <h2>Files</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Local Path</th>
+                    <th>S3 Path</th>
+                    <th>Error</th>
+                </tr>
+            </thead>
+            <tbody id="filesBody">
+                {% for file in files %}
+                <tr>
+                    <td>{{ file.file_type }}</td>
+                    <td><span class="status-badge status-{{ file.status }}">{{ file.status }}</span></td>
+                    <td>{{ file.local_path or '-' }}</td>
+                    <td>{{ file.s3_path or '-' }}</td>
+                    <td class="error-msg">{{ file.error_message or '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <a href="/" class="btn">Submit New Task</a>
+        <p class="refresh-note">This page auto-refreshes every 5 seconds.</p>
+    </div>
+
+    <script>
+        const taskId = "{{ task.task_id }}";
+
+        async function refreshStatus() {
+            try {
+                const response = await fetch(`/api/status/${taskId}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    updateUI(data);
+                }
+            } catch (e) {
+                console.error('Refresh failed:', e);
+            }
+        }
+
+        function updateUI(data) {
+            document.querySelector('.status-badge').className = `status-badge status-${data.status}`;
+            document.querySelector('.status-badge').textContent = data.status;
+
+            const tbody = document.getElementById('filesBody');
+            tbody.innerHTML = '';
+            data.files.forEach(file => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${file.file_type}</td>
+                    <td><span class="status-badge status-${file.status}">${file.status}</span></td>
+                    <td>${file.local_path || '-'}</td>
+                    <td>${file.s3_path || '-'}</td>
+                    <td class="error-msg">${file.error_message || '-'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            if (data.status === 'completed' || data.status === 'failed') {
+                clearInterval(refreshInterval);
+            }
+        }
+
+        const refreshInterval = setInterval(refreshStatus, 5000);
+    </script>
+</body>
+</html>

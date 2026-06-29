@@ -1,0 +1,26 @@
+"I need create a web app for internal users, system automatically download the files from the provided url, rename the files and auto create folder path to save in the folder. The files will be uploaded to AWS S3 bucket once above process is done. we need create a form as below for user input.  once user submit, User can see the status of each pdf file downloading and final folder readiness on the UI. we need be careful when multiple users operate the system parallelly. maybe use async process to avoid stuck. the system can be easily deployed on local and database can user sqlite db.  tell me which technologies and design to be used before coding.",
+field name,description
+CompanyName,"text input, auto suggest if it's aready in database."
+BSE Scrip Code,"text input, auto populate if the company is already in database"
+FY,"Dropdown box to select current year to 15 years ago in Fyyyyy format. E.g.FY2026, FY2025, FY2015 etc."
+Quarter,"dropdown box: Q1,Q2£¬Q3,Q4"
+EarningsCallTranscript url,"url input£¬need validate if pdf can be downloaded from this url,but no need to really download"
+EarningsCallTranscript Event Date,date calendar
+EarningsCallTranscript file name,"generated to display as the format: event date with format yyyymmdd+ '_' + BSE scrip code + '_' + 'EarningsCallTranscript.pdf'
+e.g. 20260505_532541_EarningsCallTranscript.pdf"
+InvestorPresentation url,"url input£¬need validate if pdf can be downloaded from this url,but no need to really download"
+InvestorPresentation Event Date,"date calendar, default same date as EarningsCallTranscript Event Date, but can be changed by user"
+InvestorPresentation file name,"generated to display as the format: event date with format yyyymmdd+ '_' + BSE scrip code + '_' + 'InvestorPresentation.pdf'
+e.g. 20260505_532541_InvestorPresentation.pdf"
+FinancialResults url,"url input£¬need validate if pdf can be downloaded from this url,but no need to really download"
+InvestorPresentation Event Date,"date calendar, default same date as EarningsCallTranscript Event Date, but can be changed by user"
+FinancialResults file name,"generated to display as the format: event date with format yyyymmdd+ '_' + BSE scrip code + '_' + 'FinancialResults.pdf'
+e.g. 20260505_532541_FinancialResults.pdf"
+EarningsCallAudio url,"url input£¬need validate if mp3/mp4/audio/video can be downloaded from this url,but no need to really download"
+InvestorPresentation Event Date,"date calendar, default same date as EarningsCallTranscript Event Date, but can be changed by user"
+EarningsCallAudio file name,"generated to display as the format: event date with format yyyymmdd+ '_' + BSE scrip code + '_' + 'EarningsCallTranscript'+ audio format, depend on the source url.
+E.g. 20260505_532541_EarningsCallAudio.mp4"
+HTML Address url,url input£¬need validate it's real url
+Folder Path,"auto generate file path with format:""Transcripts_Repository"" + BSE Scrip Code + FY +quarter + generated file name. e.g.
+Transcripts_Repository/532541/FY2026/Q4/20260505_532541_FinancialResults.pdf"
+DateOfDownload,display current date
