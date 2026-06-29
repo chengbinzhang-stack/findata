@@ -117,13 +117,14 @@ async def api_submit(
             "date": financial_results_date or earnings_transcript_date,
             "doc_type": DocumentType.FINANCIAL_RESULTS
         })
-    if earnings_audio_url:
-        docs_to_process.append({
-            "type": "earnings_audio",
-            "url": earnings_audio_url,
-            "date": earnings_audio_date or financial_results_date or earnings_transcript_date,
-            "doc_type": DocumentType.EARNINGS_CALL_AUDIO
-        })
+    # Skip audio files - they're too large to download
+    # if earnings_audio_url:
+    #     docs_to_process.append({
+    #         "type": "earnings_audio",
+    #         "url": earnings_audio_url,
+    #         "date": earnings_audio_date or financial_results_date or earnings_transcript_date,
+    #         "doc_type": DocumentType.EARNINGS_CALL_AUDIO
+    #     })
 
     if docs_to_process:
         background_tasks.add_task(
