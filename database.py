@@ -145,10 +145,26 @@ async def create_file_record(task_id: str, file_type: str, original_url: str, ht
 
 
 async def update_file_record(record_id: int, status: str, local_path: str = None, s3_path: str = None, error_message: str = None):
+    # Build dynamic update query - only update fields that are provided (not None)
+    updates = ["status = ?"]
+    values = [status]
+
+    if local_path is not None:
+        updates.append("local_path = ?")
+        values.append(local_path)
+    if s3_path is not None:
+        updates.append("s3_path = ?")
+        values.append(s3_path)
+    if error_message is not None:
+        updates.append("error_message = ?")
+        values.append(error_message)
+
+    values.append(record_id)
+
     async with aiosqlite.connect(DATABASE_PATH) as db:
         await db.execute(
-            """UPDATE file_records SET status = ?, local_path = ?, s3_path = ?, error_message = ? WHERE id = ?""",
-            (status, local_path, s3_path, error_message, record_id)
+            f"""UPDATE file_records SET {', '.join(updates)} WHERE id = ?""",
+            values
         )
         await db.commit()
 

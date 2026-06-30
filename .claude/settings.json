@@ -6,7 +6,8 @@
       "Bash(git push *)",
       "Bash(git add *)",
       "Bash(git commit *)",
-      "WebFetch(domain:minimax-algeng-chat-tts.oss-cn-wulanchabu.aliyuncs.com)"
+      "WebFetch(domain:minimax-algeng-chat-tts.oss-cn-wulanchabu.aliyuncs.com)",
+      "Bash(python -c ' *)"
     ]
   }
 }
