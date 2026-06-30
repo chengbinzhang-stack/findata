@@ -262,7 +262,7 @@ async def download_files_excel(search: str = None):
     ws.title = "Downloaded Files"
 
     # Headers
-    headers = ["Ticker Used In File name", "Company Name", "FY", "Quarter", "Document Type", "HTML Address", "Source URL", "File Path", "Event Date", "Status", "Download Date"]
+    headers = ["Ticker Used In File name", "Company Name", "FY", "Quarter", "Document Type", "HTML Address", "Source URL", "File Path", "Filename", "Event Date", "Status", "Download Date"]
     header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
     header_font = Font(bold=True, color="FFFFFF")
     thin_border = Border(
@@ -279,6 +279,10 @@ async def download_files_excel(search: str = None):
 
     # Data
     for row_idx, file_data in enumerate(result["files"], 2):
+        full_path = file_data.get("local_path") or ""
+        file_path = full_path.replace("downloads/", "") if full_path else ""
+        file_name = full_path.split("/")[-1] if full_path else ""
+
         ws.cell(row=row_idx, column=1, value=file_data["bse_scrip_code"]).border = thin_border
         ws.cell(row=row_idx, column=2, value=file_data["company_name"]).border = thin_border
         ws.cell(row=row_idx, column=3, value=file_data["fy"]).border = thin_border
@@ -286,10 +290,11 @@ async def download_files_excel(search: str = None):
         ws.cell(row=row_idx, column=5, value=file_data["file_type"]).border = thin_border
         ws.cell(row=row_idx, column=6, value=file_data["html_address"] or "").border = thin_border
         ws.cell(row=row_idx, column=7, value=file_data["original_url"] or "").border = thin_border
-        ws.cell(row=row_idx, column=8, value=file_data["local_path"] or "").border = thin_border
-        ws.cell(row=row_idx, column=9, value=file_data["event_date"] or "").border = thin_border
-        ws.cell(row=row_idx, column=10, value=file_data["status"]).border = thin_border
-        ws.cell(row=row_idx, column=11, value=file_data["created_at"]).border = thin_border
+        ws.cell(row=row_idx, column=8, value=file_path).border = thin_border
+        ws.cell(row=row_idx, column=9, value=file_name).border = thin_border
+        ws.cell(row=row_idx, column=10, value=file_data["event_date"] or "").border = thin_border
+        ws.cell(row=row_idx, column=11, value=file_data["status"]).border = thin_border
+        ws.cell(row=row_idx, column=12, value=file_data["created_at"]).border = thin_border
 
     # Column widths
     ws.column_dimensions['A'].width = 25
@@ -300,9 +305,10 @@ async def download_files_excel(search: str = None):
     ws.column_dimensions['F'].width = 50
     ws.column_dimensions['G'].width = 50
     ws.column_dimensions['H'].width = 50
-    ws.column_dimensions['I'].width = 15
+    ws.column_dimensions['I'].width = 40
     ws.column_dimensions['J'].width = 15
-    ws.column_dimensions['K'].width = 20
+    ws.column_dimensions['K'].width = 15
+    ws.column_dimensions['L'].width = 20
 
     output = io.BytesIO()
     wb.save(output)
