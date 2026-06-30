@@ -187,7 +187,7 @@ async def get_all_files(search: str = None, page: int = 1, page_size: int = 20):
     count_query = """
         SELECT COUNT(*) FROM file_records fr
         JOIN download_records dr ON fr.task_id = dr.task_id
-        WHERE (fr.status = 'downloaded' OR fr.status = 'uploaded')
+        WHERE (fr.status = 'downloaded' OR fr.status = 'uploaded' OR fr.status = 'skipped')
     """
 
     where_clause = ""
@@ -210,7 +210,7 @@ async def get_all_files(search: str = None, page: int = 1, page_size: int = 20):
                 dr.company_name, dr.bse_scrip_code, dr.fy, dr.quarter
             FROM file_records fr
             JOIN download_records dr ON fr.task_id = dr.task_id
-            WHERE (fr.status = 'downloaded' OR fr.status = 'uploaded'){where_clause}
+            WHERE (fr.status = 'downloaded' OR fr.status = 'uploaded' OR fr.status = 'skipped'){where_clause}
             ORDER BY fr.created_at DESC
             LIMIT ? OFFSET ?
         """

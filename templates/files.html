@@ -94,6 +94,10 @@
             background: #cce5ff;
             color: #004085;
         }
+        .status-skipped {
+            background: #fff3cd;
+            color: #856404;
+        }
         .pagination {
             display: flex;
             justify-content: center;
@@ -213,7 +217,7 @@
             `;
 
             for (const file of files) {
-                const statusClass = file.status === 'uploaded' ? 'status-uploaded' : 'status-downloaded';
+                const statusClass = file.status === 'uploaded' ? 'status-uploaded' : (file.status === 'skipped' ? 'status-skipped' : 'status-downloaded');
                 const docType = file.file_type.replace(/_/g, ' ');
                 const fileName = file.local_path ? file.local_path.split('/').pop() : '';
 

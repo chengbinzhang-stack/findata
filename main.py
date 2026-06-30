@@ -124,14 +124,16 @@ async def api_submit(
             "date": financial_results_date or earnings_transcript_date,
             "doc_type": DocumentType.FINANCIAL_RESULTS
         })
-    # Skip audio files - they're too large to download
-    # if earnings_audio_url:
-    #     docs_to_process.append({
-    #         "type": "earnings_audio",
-    #         "url": earnings_audio_url,
-    #         "date": earnings_audio_date or financial_results_date or earnings_transcript_date,
-    #         "doc_type": DocumentType.EARNINGS_CALL_AUDIO
-    #     })
+    # Audio files - record but skip download (too large)
+    if earnings_audio_url:
+        docs_to_process.append({
+            "type": "earnings_audio",
+            "url": earnings_audio_url,
+            "html_address": earnings_audio_html_address,
+            "date": earnings_audio_date or financial_results_date or earnings_transcript_date,
+            "doc_type": DocumentType.EARNINGS_CALL_AUDIO,
+            "skip_download": True
+        })
 
     if docs_to_process:
         background_tasks.add_task(
@@ -163,6 +165,11 @@ async def process_all_documents(task_id: str, docs, scrip_code: str, fy: str, qu
 
         db_record_id = await create_file_record(task_id, doc["type"], doc["url"], doc.get("html_address"), str(doc_date) if doc["date"] else None)
 
+        # Handle skipped downloads (e.g., audio files too large)
+        if doc.get("skip_download"):
+            await update_file_record(db_record_id, "skipped", error_message="File too large to download")
+            continue
+
         await db_update_status(task_id, "downloading")
 
         success, error = await download_file(doc["url"], local_path)
@@ -184,7 +191,7 @@ async def process_all_documents(task_id: str, docs, scrip_code: str, fy: str, qu
             await update_file_record(db_record_id, "failed", error_message=error)
 
     all_records = await get_file_records(task_id)
-    all_completed = all(r["status"] in ["uploaded", "upload_failed"] for r in all_records)
+    all_completed = all(r["status"] in ["uploaded", "upload_failed", "skipped"] for r in all_records)
     any_failed = any(r["status"] in ["failed", "upload_failed"] for r in all_records)
 
     await db_update_status(task_id, "completed" if all_completed else "failed")
