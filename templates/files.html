@@ -221,8 +221,8 @@
                 const statusClass = file.status === 'uploaded' ? 'status-uploaded' : (file.status === 'skipped' ? 'status-skipped' : 'status-downloaded');
                 const docType = file.file_type.replace(/_/g, ' ');
                 const fullPath = file.local_path || '';
-                const filePath = fullPath.replace('downloads/', '');
-                const fileName = fullPath.split('/').pop() || '';
+                const filePath = fullPath.replace(/^.*?downloads[\\/]/, '').replace(/\\/g, '/');
+                const fileName = filePath.split('/').pop() || '';
 
                 html += `
                     <tr>

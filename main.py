@@ -279,9 +279,10 @@ async def download_files_excel(search: str = None):
 
     # Data
     for row_idx, file_data in enumerate(result["files"], 2):
+        import re
         full_path = file_data.get("local_path") or ""
-        file_path = full_path.replace("downloads/", "") if full_path else ""
-        file_name = full_path.split("/")[-1] if full_path else ""
+        file_path = re.sub(r"^.*?downloads[/\\]", "", full_path).replace("\\", "/")
+        file_name = file_path.split("/")[-1] if file_path else ""
 
         ws.cell(row=row_idx, column=1, value=file_data["bse_scrip_code"]).border = thin_border
         ws.cell(row=row_idx, column=2, value=file_data["company_name"]).border = thin_border
