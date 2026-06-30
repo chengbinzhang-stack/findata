@@ -282,8 +282,6 @@ async def download_files_excel(search: str = None):
         import re
         full_path = file_data.get("local_path") or ""
         file_path = re.sub(r"^.*?downloads[/\\]", "", full_path).replace("\\", "/")
-        file_name = file_path.split("/")[-1] if file_path else ""
-        folder_path = "/".join(file_path.split("/")[:-1]) if file_path else ""
         # Date only, no time
         created_at = file_data.get("created_at", "")[:10] if file_data.get("created_at") else ""
 
@@ -297,8 +295,8 @@ async def download_files_excel(search: str = None):
         ws.cell(row=row_idx, column=7, value=file_data.get("original_url") or "").border = thin_border
         ws.cell(row=row_idx, column=8, value=file_data.get("html_address") or "").border = thin_border
         ws.cell(row=row_idx, column=9, value=file_data.get("event_date") or "").border = thin_border
-        ws.cell(row=row_idx, column=10, value=file_name).border = thin_border
-        ws.cell(row=row_idx, column=11, value=folder_path).border = thin_border
+        ws.cell(row=row_idx, column=10, value=file_path.split("/")[-1] if file_path else "").border = thin_border  # File Name
+        ws.cell(row=row_idx, column=11, value=file_path).border = thin_border  # Folder Path (with filename)
         ws.cell(row=row_idx, column=12, value=created_at).border = thin_border
 
     # Column widths
