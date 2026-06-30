@@ -1,6 +1,7 @@
 import httpx
 import os
 import shutil
+import platform
 from pathlib import Path
 from typing import Optional
 from models import ValidateUrlResponse, DocumentType
@@ -8,6 +9,35 @@ from datetime import date
 
 
 DOWNLOAD_DIR = Path(__file__).parent / "downloads"
+
+
+def get_browser_headers():
+    system = platform.system()
+    if system == "Darwin":
+        os_platform = "macOS"
+        platform_icon = "\"Macintosh\""
+    elif system == "Windows":
+        os_platform = "Windows"
+        platform_icon = "\"Windows\""
+    else:
+        os_platform = "Linux"
+        platform_icon = "\"Linux\""
+    return {
+        "User-Agent": f"Mozilla/5.0 ({os_platform}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Referer": "",
+        "Origin": "",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1",
+        "Upgrade-Insecure-Requests": "1",
+        "sec-ch-ua": "\"Chromium\";v=\"120\", \"Google Chrome\";v=\"120\"",
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": platform_icon,
+    }
 
 
 def get_file_extension(url: str) -> str:
@@ -34,23 +64,11 @@ async def validate_url(url: str) -> ValidateUrlResponse:
     if not url:
         return ValidateUrlResponse(valid=False, error="URL is empty")
     try:
+        headers = get_browser_headers()
+        headers["Referer"] = "/".join(url.split("/")[:3])
+        headers["Origin"] = "/".join(url.split("/")[:3])
         async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
-            response = await client.get(url, headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-                "Accept-Language": "en-US,en;q=0.9",
-                "Accept-Encoding": "gzip, deflate, br",
-                "Referer": "/".join(url.split("/")[:3]),
-                "Origin": "/".join(url.split("/")[:3]),
-                "Sec-Fetch-Dest": "document",
-                "Sec-Fetch-Mode": "navigate",
-                "Sec-Fetch-Site": "none",
-                "Sec-Fetch-User": "?1",
-                "Upgrade-Insecure-Requests": "1",
-                "sec-ch-ua": "\"Chromium\";v=\"120\", \"Google Chrome\";v=\"120\"",
-                "sec-ch-ua-mobile": "?0",
-                "sec-ch-ua-platform": "\"Windows\"",
-            })
+            response = await client.get(url, headers=headers)
             if response.status_code == 200:
                 content_type = response.headers.get("content-type", "").split(";")[0].strip()
                 file_size = int(response.headers.get("content-length", 0))
@@ -65,23 +83,11 @@ async def validate_url(url: str) -> ValidateUrlResponse:
 async def download_file(url: str, local_path: Path) -> tuple[bool, Optional[str]]:
     try:
         local_path.parent.mkdir(parents=True, exist_ok=True)
+        headers = get_browser_headers()
+        headers["Referer"] = "/".join(url.split("/")[:3])
+        headers["Origin"] = "/".join(url.split("/")[:3])
         async with httpx.AsyncClient(timeout=60.0, follow_redirects=True) as client:
-            async with client.stream("GET", url, headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                "Accept-Language": "en-US,en;q=0.9",
-                "Accept-Encoding": "gzip, deflate, br",
-                "Referer": "/".join(url.split("/")[:3]),
-                "Origin": "/".join(url.split("/")[:3]),
-                "Sec-Fetch-Dest": "document",
-                "Sec-Fetch-Mode": "navigate",
-                "Sec-Fetch-Site": "none",
-                "Sec-Fetch-User": "?1",
-                "Upgrade-Insecure-Requests": "1",
-                "sec-ch-ua": "\"Chromium\";v=\"120\", \"Google Chrome\";v=\"120\"",
-                "sec-ch-ua-mobile": "?0",
-                "sec-ch-ua-platform": "\"Windows\"",
-            }) as response:
+            async with client.stream("GET", url, headers=headers) as response:
                 if response.status_code != 200:
                     return False, f"HTTP {response.status_code}"
                 with open(local_path, "wb") as f:
