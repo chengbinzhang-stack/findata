@@ -262,7 +262,7 @@ async def download_files_excel(search: str = None):
     ws.title = "Downloaded Files"
 
     # Headers
-    headers = ["Ticker Used In File name", "Company Name", "FY", "Quarter", "Document Type", "HTML Address", "Source URL", "File Path", "Filename", "Event Date", "Status", "Download Date"]
+    headers = ["FY", "CompanyName", "BSE Scrip Code", "Ticker Used In File name", "Quarter", "Type", "Source URL", "HTML Address", "Event Date", "File Name", "Folder Path", "DateOfDownload"]
     header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
     header_font = Font(bold=True, color="FFFFFF")
     thin_border = Border(
@@ -283,33 +283,37 @@ async def download_files_excel(search: str = None):
         full_path = file_data.get("local_path") or ""
         file_path = re.sub(r"^.*?downloads[/\\]", "", full_path).replace("\\", "/")
         file_name = file_path.split("/")[-1] if file_path else ""
+        folder_path = "/".join(file_path.split("/")[:-1]) if file_path else ""
+        # Date only, no time
+        created_at = file_data.get("created_at", "")[:10] if file_data.get("created_at") else ""
 
-        ws.cell(row=row_idx, column=1, value=file_data["bse_scrip_code"]).border = thin_border
-        ws.cell(row=row_idx, column=2, value=file_data["company_name"]).border = thin_border
-        ws.cell(row=row_idx, column=3, value=file_data["fy"]).border = thin_border
-        ws.cell(row=row_idx, column=4, value=file_data["quarter"]).border = thin_border
-        ws.cell(row=row_idx, column=5, value=file_data["file_type"]).border = thin_border
-        ws.cell(row=row_idx, column=6, value=file_data["html_address"] or "").border = thin_border
-        ws.cell(row=row_idx, column=7, value=file_data["original_url"] or "").border = thin_border
-        ws.cell(row=row_idx, column=8, value=file_path).border = thin_border
-        ws.cell(row=row_idx, column=9, value=file_name).border = thin_border
-        ws.cell(row=row_idx, column=10, value=file_data["event_date"] or "").border = thin_border
-        ws.cell(row=row_idx, column=11, value=file_data["status"]).border = thin_border
-        ws.cell(row=row_idx, column=12, value=file_data["created_at"]).border = thin_border
+        # FY, CompanyName, BSE Scrip Code, Ticker Used In File name, Quarter, Type, Source URL, HTML Address, Event Date, File Name, Folder Path, DateOfDownload
+        ws.cell(row=row_idx, column=1, value=file_data.get("fy") or "").border = thin_border
+        ws.cell(row=row_idx, column=2, value=file_data.get("company_name") or "").border = thin_border
+        ws.cell(row=row_idx, column=3, value=file_data.get("bse_scrip_code") or "").border = thin_border
+        ws.cell(row=row_idx, column=4, value=file_data.get("bse_scrip_code") or "").border = thin_border  # Ticker = BSE Scrip Code
+        ws.cell(row=row_idx, column=5, value=file_data.get("quarter") or "").border = thin_border
+        ws.cell(row=row_idx, column=6, value=file_data.get("file_type") or "").border = thin_border
+        ws.cell(row=row_idx, column=7, value=file_data.get("original_url") or "").border = thin_border
+        ws.cell(row=row_idx, column=8, value=file_data.get("html_address") or "").border = thin_border
+        ws.cell(row=row_idx, column=9, value=file_data.get("event_date") or "").border = thin_border
+        ws.cell(row=row_idx, column=10, value=file_name).border = thin_border
+        ws.cell(row=row_idx, column=11, value=folder_path).border = thin_border
+        ws.cell(row=row_idx, column=12, value=created_at).border = thin_border
 
     # Column widths
-    ws.column_dimensions['A'].width = 25
+    ws.column_dimensions['A'].width = 10
     ws.column_dimensions['B'].width = 30
-    ws.column_dimensions['C'].width = 10
-    ws.column_dimensions['D'].width = 10
-    ws.column_dimensions['E'].width = 25
-    ws.column_dimensions['F'].width = 50
+    ws.column_dimensions['C'].width = 15
+    ws.column_dimensions['D'].width = 25
+    ws.column_dimensions['E'].width = 10
+    ws.column_dimensions['F'].width = 25
     ws.column_dimensions['G'].width = 50
     ws.column_dimensions['H'].width = 50
-    ws.column_dimensions['I'].width = 40
-    ws.column_dimensions['J'].width = 15
-    ws.column_dimensions['K'].width = 15
-    ws.column_dimensions['L'].width = 20
+    ws.column_dimensions['I'].width = 15
+    ws.column_dimensions['J'].width = 45
+    ws.column_dimensions['K'].width = 50
+    ws.column_dimensions['L'].width = 15
 
     output = io.BytesIO()
     wb.save(output)
