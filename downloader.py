@@ -67,6 +67,9 @@ async def validate_url(url: str) -> ValidateUrlResponse:
         headers = get_browser_headers()
         headers["Referer"] = "/".join(url.split("/")[:3])
         headers["Origin"] = "/".join(url.split("/")[:3])
+        # Fortis needs a referer from within the site
+        if "fortishealthcare.com" in url:
+            headers["Referer"] = "https://www.fortishealthcare.com/investor/"
         async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
             response = await client.get(url, headers=headers)
             if response.status_code == 200:
@@ -86,6 +89,9 @@ async def download_file(url: str, local_path: Path) -> tuple[bool, Optional[str]
         headers = get_browser_headers()
         headers["Referer"] = "/".join(url.split("/")[:3])
         headers["Origin"] = "/".join(url.split("/")[:3])
+        # Fortis needs a referer from within the site
+        if "fortishealthcare.com" in url:
+            headers["Referer"] = "https://www.fortishealthcare.com/investor/"
         async with httpx.AsyncClient(timeout=60.0, follow_redirects=True) as client:
             async with client.stream("GET", url, headers=headers) as response:
                 if response.status_code != 200:
