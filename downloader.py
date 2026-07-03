@@ -85,15 +85,28 @@ async def validate_url_playwright(url: str) -> ValidateUrlResponse:
     from playwright.async_api import async_playwright
     try:
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
+            browser = await p.chromium.launch(
+                headless=True,
+                args=[
+                    "--disable-blink-features=AutomationControlled",
+                    "--disable-dev-shm-usage",
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-web-security",
+                    "--disable-features=IsolateOrigins,site-per-process",
+                ]
+            )
             page = await browser.new_page()
+            # Hide webdriver property
+            await page.add_init_script("""
+                Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+            """)
             response = await page.goto(url, wait_until="networkidle", timeout=30000)
             status = response.status if response else 0
             content_type = ""
             file_size = 0
             if response:
                 content_type = response.headers.get("content-type", "").split(";")[0].strip()
-            # Get content length from response body
             try:
                 body = await page.content()
                 file_size = len(body.encode())
@@ -131,17 +144,26 @@ async def download_file_playwright(url: str, local_path: Path, timeout: int = 60
     try:
         local_path.parent.mkdir(parents=True, exist_ok=True)
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
+            browser = await p.chromium.launch(
+                headless=True,
+                args=[
+                    "--disable-blink-features=AutomationControlled",
+                    "--disable-dev-shm-usage",
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-web-security",
+                ]
+            )
             page = await browser.new_page()
-            # Set up download handler
+            await page.add_init_script("""
+                Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+            """)
             download_task = None
             async def handle_download(download):
                 nonlocal download_task
                 download_task = download
-
             page.on("download", handle_download)
             await page.goto(url, wait_until="networkidle", timeout=timeout * 1000)
-            # Wait for download to start
             if download_task is None:
                 await page.wait_for_timeout(3000)
             if download_task:

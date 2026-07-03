@@ -28,6 +28,7 @@ A FastAPI-based web application for downloading and organizing earnings call tra
 
 ```bash
 pip install -r requirements.txt
+playwright install chromium
 ```
 
 ## Run
