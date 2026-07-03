@@ -211,7 +211,17 @@ async def get_all_files(search: str = None, page: int = 1, page_size: int = 20):
             FROM file_records fr
             JOIN download_records dr ON fr.task_id = dr.task_id
             WHERE (fr.status = 'downloaded' OR fr.status = 'uploaded' OR fr.status = 'skipped'){where_clause}
-            ORDER BY fr.created_at DESC
+            ORDER BY
+                dr.company_name ASC,
+                dr.fy DESC,
+                dr.quarter DESC,
+                CASE fr.file_type
+                    WHEN 'earnings_transcript' THEN 1
+                    WHEN 'investor_presentation' THEN 2
+                    WHEN 'financial_results' THEN 3
+                    WHEN 'earnings_audio' THEN 4
+                    ELSE 5
+                END ASC
             LIMIT ? OFFSET ?
         """
         params.extend([page_size, offset])
