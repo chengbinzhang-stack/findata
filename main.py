@@ -17,7 +17,7 @@ from database import (
     save_company, create_download_task, get_task, update_task_status,
     create_file_record, update_file_record, get_file_records, get_all_files
 )
-from downloader import validate_url, generate_filename, generate_folder_path, download_file
+from downloader import validate_url, validate_url_playwright, generate_filename, generate_folder_path, download_file, download_file_playwright
 from s3_utils import upload_to_s3
 
 
@@ -69,6 +69,8 @@ async def api_get_company(scrip_code: str):
 @app.get("/api/validate-url")
 async def api_validate_url(url: str):
     result = await validate_url(url)
+    if not result.valid:
+        result = await validate_url_playwright(url)
     return result
 
 
@@ -172,7 +174,19 @@ async def process_all_documents(task_id: str, docs, scrip_code: str, fy: str, qu
 
         await db_update_status(task_id, "downloading")
 
+        # Try httpx first, fallback to Playwright if fails
+        valid_result = await validate_url(doc["url"])
+        if not valid_result.valid:
+            valid_result = await validate_url_playwright(doc["url"])
+        if not valid_result.valid:
+            await update_file_record(db_record_id, "failed", error_message=f"URL validation failed: {valid_result.error}")
+            continue
+
         success, error = await download_file(doc["url"], local_path)
+
+        # Fallback to Playwright if regular download fails
+        if not success:
+            success, error = await download_file_playwright(doc["url"], local_path)
 
         if success:
             await update_file_record(db_record_id, "downloaded", local_path=str(local_path))

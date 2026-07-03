@@ -67,9 +67,6 @@ async def validate_url(url: str) -> ValidateUrlResponse:
         headers = get_browser_headers()
         headers["Referer"] = "/".join(url.split("/")[:3])
         headers["Origin"] = "/".join(url.split("/")[:3])
-        # Fortis needs a referer from within the site
-        if "fortishealthcare.com" in url:
-            headers["Referer"] = "https://www.fortishealthcare.com/investor/"
         async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
             response = await client.get(url, headers=headers)
             if response.status_code == 200:
@@ -83,15 +80,39 @@ async def validate_url(url: str) -> ValidateUrlResponse:
         return ValidateUrlResponse(valid=False, error=str(e))
 
 
+async def validate_url_playwright(url: str) -> ValidateUrlResponse:
+    """Validate URL using Playwright headless browser."""
+    from playwright.async_api import async_playwright
+    try:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            page = await browser.new_page()
+            response = await page.goto(url, wait_until="networkidle", timeout=30000)
+            status = response.status if response else 0
+            content_type = ""
+            file_size = 0
+            if response:
+                content_type = response.headers.get("content-type", "").split(";")[0].strip()
+            # Get content length from response body
+            try:
+                body = await page.content()
+                file_size = len(body.encode())
+            except Exception:
+                pass
+            await browser.close()
+            if status == 200:
+                return ValidateUrlResponse(valid=True, content_type=content_type, file_size=file_size)
+            return ValidateUrlResponse(valid=False, error=f"HTTP {status}")
+    except Exception as e:
+        return ValidateUrlResponse(valid=False, error=str(e))
+
+
 async def download_file(url: str, local_path: Path) -> tuple[bool, Optional[str]]:
     try:
         local_path.parent.mkdir(parents=True, exist_ok=True)
         headers = get_browser_headers()
         headers["Referer"] = "/".join(url.split("/")[:3])
         headers["Origin"] = "/".join(url.split("/")[:3])
-        # Fortis needs a referer from within the site
-        if "fortishealthcare.com" in url:
-            headers["Referer"] = "https://www.fortishealthcare.com/investor/"
         async with httpx.AsyncClient(timeout=60.0, follow_redirects=True) as client:
             async with client.stream("GET", url, headers=headers) as response:
                 if response.status_code != 200:
@@ -100,6 +121,36 @@ async def download_file(url: str, local_path: Path) -> tuple[bool, Optional[str]
                     async for chunk in response.aiter_bytes(chunk_size=8192):
                         f.write(chunk)
         return True, None
+    except Exception as e:
+        return False, str(e)
+
+
+async def download_file_playwright(url: str, local_path: Path, timeout: int = 60) -> tuple[bool, Optional[str]]:
+    """Download file using Playwright (headless browser) for sites with WAF."""
+    from playwright.async_api import async_playwright
+    try:
+        local_path.parent.mkdir(parents=True, exist_ok=True)
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            page = await browser.new_page()
+            # Set up download handler
+            download_task = None
+            async def handle_download(download):
+                nonlocal download_task
+                download_task = download
+
+            page.on("download", handle_download)
+            await page.goto(url, wait_until="networkidle", timeout=timeout * 1000)
+            # Wait for download to start
+            if download_task is None:
+                await page.wait_for_timeout(3000)
+            if download_task:
+                await download_task.save_as(str(local_path))
+                await browser.close()
+                return True, None
+            else:
+                await browser.close()
+                return False, "No download detected"
     except Exception as e:
         return False, str(e)
 
